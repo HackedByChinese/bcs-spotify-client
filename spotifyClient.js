@@ -16,8 +16,20 @@ var SpotifyClient = function(options) {
 
 SpotifyClient.prototype = {
     getTopTracks: function() {
+        var self = this;
         return new Promise((resolve, reject) => {
-            this.request.get('me/top/tracks', {}, (err, response, body) => {
+            self.request.get('me/top/tracks', {}, (err, response, body) => {
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(body)
+            });
+        });
+    },
+    getTopArtists: function () {
+        return new Promise((resolve, reject) => {
+            this.request.get('me/top/artists', {}, (err, response, body) => {
                 if (err) {
                     return reject(err);
                 }

@@ -1,0 +1,80 @@
+var passport = require('passport');
+var SpotifyStrategy = require('passport-spotify').Strategy;
+
+var db = require('./models');
+
+module.exports = function(app) {
+
+    var client_id = ''; // Your client id
+    var client_secret = '';
+
+    passport.serializeUser(function (user, done) {
+        done(null, user.id);
+    });
+
+    passport.deserializeUser(function (userId, done) {
+        db.User.findById(userId)
+            .then(function(user) {
+                done(null, user);
+            })
+            .catch(function(err) {
+                done(err);
+            });
+    });
+
+    passport.use(new SpotifyStrategy({
+        clientID: client_id,
+        clientSecret: client_secret,
+        callbackURL: 'http://localhost:8888/callback',
+        scope: ['user-read-email', 'user-read-private', 'user-top-read']
+    },
+        function (accessToken, refreshToken, expires_in, profile, done) {
+            db.User.findOrCreate({
+                where: {
+                    spotifyId: profile.id
+                },
+                defaults: {
+                    accessToken: accessToken
+                }
+            })
+            .then(function(users) {
+                done(null, users[0]);
+            })
+            .catch(function(err) {
+                done(err);
+            });
+        }
+    ));
+
+    app.use(passport.initialize());
+    app.use(passport.session());
+    app.use(function(req, res, next) {
+        if (
+            req.path === '/login' || req.path === '/logout' || req.path === '/callback'
+            || req.isAuthenticated()
+        ) {
+            return next();
+        }
+
+        res.redirect('/login');
+    });
+
+    app.get('/callback',
+        passport.authenticate('spotify', { failureRedirect: '/login' }),
+        function (req, res) {
+            // Successful authentication, redirect home.
+            res.redirect('/');
+        });
+
+    app.get('/login',
+        passport.authenticate('spotify'),
+        function(req, res) {
+
+        }
+    )
+
+    app.get('/logout', function (req, res) {
+        req.logout();
+        res.redirect('/');
+    });
+}
